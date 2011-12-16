@@ -1,22 +1,22 @@
 (ns foreclojure.utils
-  (:require [sandbar.stateful-session :as   session]
-            [ring.util.response       :as   response]
-            [foreclojure.config       :as   config]
-            [foreclojure.messages     :as   msg]
-            [clojure.walk             :as   walk]
-            [clojure.string           :as   string]
-            [foreclojure.git          :as   git]
-            [hiccup.page-helpers      :as   hiccup])
-  (:import  [java.net                 URLEncoder]
-            (org.apache.commons.lang  StringEscapeUtils)
-            (org.apache.commons.mail  HtmlEmail))
-  (:use     [hiccup.core              :only [html]]
-            [hiccup.page-helpers      :only [doctype javascript-tag link-to]]
-            [hiccup.form-helpers      :only [label]]
-            [useful.fn                :only [to-fix]]
-            [somnium.congomongo       :only [fetch-one]]
-            [foreclojure.ring-utils   :only [*url* static-url]]
-            [foreclojure.config       :only [config repo-url]]))
+  (:require [noir.session            :as   session]
+            [noir.response           :as   response]
+            [foreclojure.config      :as   config]
+            [foreclojure.messages    :as   msg]
+            [clojure.walk            :as   walk]
+            [clojure.string          :as   string]
+            [foreclojure.git         :as   git]
+            [hiccup.page-helpers     :as   hiccup])
+  (:import  [java.net                URLEncoder]
+            (org.apache.commons.lang StringEscapeUtils)
+            (org.apache.commons.mail HtmlEmail))
+  (:use     [hiccup.core             :only [html]]
+            [hiccup.page-helpers     :only [doctype javascript-tag link-to]]
+            [hiccup.form-helpers     :only [label]]
+            [useful.fn               :only [to-fix]]
+            [somnium.congomongo      :only [fetch-one]]
+            [foreclojure.ring-utils  :only [*url* static-url]]
+            [foreclojure.config      :only [config repo-url]]))
 
 (defn as-int [s]
   (if (integer? s) s,
@@ -131,13 +131,13 @@
   to the supplied binding and executing the then clause. If no such user
   can be found, evaluate the else clause.
 
-  username defaults to the current value of (session-get :user) if not
+  username defaults to the current value of (session/get :user) if not
   specified. Callers need not verify that username is non-nil: that is
   done for you before consulting the database."
   ([[user-binding username] then]
      `(if-user ~[user-binding username] ~then nil))
   ([[user-binding username] then else]
-     (let [userexpr (or username `(session/session-get :user))]
+     (let [userexpr (or username `(session/get :user))]
        `(let [username# ~userexpr]
           (if-let [~user-binding (and username#
                                       (get-user username#))]

@@ -1,94 +1,48 @@
 (ns foreclojure.core
-  (:require [compojure.route            :as   route]
-            [compojure.handler          :as   handler]
-            [foreclojure.config         :as   config]
-            [sandbar.stateful-session   :as   session])
-  (:use     [compojure.core             :only [defroutes routes GET]]
-            [foreclojure.static         :only [static-routes welcome-page]]
-            [foreclojure.api            :only [api-routes]]
-            [foreclojure.datatable      :only [datatable-routes]]
-            [foreclojure.problems       :only [problems-routes]]
-            [foreclojure.login          :only [login-routes]]
-            [foreclojure.settings       :only [settings-routes]]
-            [foreclojure.register       :only [register-routes]]
-            [foreclojure.golf           :only [golf-routes]]
-            [foreclojure.ring           :only [resources wrap-strip-trailing-slash wrap-url-as-file wrap-versioned-expiry split-hosts wrap-404 wrap-debug]]
-            [foreclojure.users          :only [users-routes]]
-            [foreclojure.config         :only [config]]
-            [foreclojure.social         :only [social-routes]]
-            [foreclojure.version        :only [version-routes]]
-            [foreclojure.graphs         :only [graph-routes]]
-            [foreclojure.mongo          :only [prepare-mongo]]
-            [foreclojure.ring-utils     :only [wrap-request-bindings]]
-            [foreclojure.periodic       :only [schedule-task]]
-            [ring.adapter.jetty         :only [run-jetty]]
-            [ring.middleware.reload     :only [wrap-reload]]
-            [ring.middleware.stacktrace :only [wrap-stacktrace]]
-            [ring.middleware.file-info  :only [wrap-file-info]]
-            [ring.middleware.gzip       :only [wrap-gzip]]
-            [mongo-session.core         :only [mongo-session]]))
+  (:use     [foreclojure.config        :only [config]]
+            [foreclojure.mongo         :only [prepare-mongo]]
+            [foreclojure.ring-utils    :only [wrap-request-bindings]]
+            [foreclojure.periodic      :only [schedule-task]]
+            [ring.adapter.jetty        :only [run-jetty]]
+            [ring.middleware.file-info :only [wrap-file-info]]
+            [ring.middleware.gzip      :only [wrap-gzip]]
+            [mongo-session.core        :only [mongo-session]]
+            [foreclojure.static        :only [welcome-page]]
+            [foreclojure.ring-utils    :only [static-url wrap-request-bindings]])
+  (:require [foreclojure.config        :as   config]
+            [foreclojure.ring          :as   ring]
+            [noir.server               :as   server]
+            [noir.core                 :as   noir]))
 
-(def *block-server* false)
+;; The 404 route has to come before the resources, otherwise resources
+;; wont be found.
+(noir/defpartial render-404 []
+  [:head
+   [:title "4clojure: Page not found"]]
+  [:body
+   [:div {:style "margin-left: auto; margin-right: auto; width: 300px;"}
+    [:p {:style "text-align: center; width: 100%; margin-top: 45px; font-family: helvetica; color: gray; font-size: 25px;"} "404 &mdash; Page not found."]
+    [:img {:style "margin-left: 18px;" :src (static-url "images/4clj-gus-confused-small.png")}]]])
 
-(defroutes resource-routes
-  (-> (resources "/*")
-      (wrap-url-as-file)
-      (wrap-file-info)
-      (wrap-versioned-expiry)))
+(noir/post-route [:any "*"] {} (render-404))
 
-(def dynamic-routes
-  (-> (routes (GET "/" [] (welcome-page))
-              login-routes
-              register-routes
-              problems-routes
-              users-routes
-              static-routes
-              social-routes
-              version-routes
-              graph-routes
-              api-routes
-              datatable-routes
-              golf-routes
-              settings-routes)
-      ((if (:wrap-reload config)
-         #(wrap-reload % '(foreclojure.core))
-         identity))
-      (session/wrap-stateful-session {:store (mongo-session :sessions)})
-      wrap-request-bindings
-      handler/site
-      wrap-strip-trailing-slash))
+;; We want for this specific route to have this middleware applied.
+;; Noir doesn't currently have a way to do special resource stuff,
+;; so we're hacking around that a bit.
+(noir/compojure-route
+ (-> (ring/resources "/*")
+     ring/wrap-url-as-file
+     wrap-file-info
+     ring/wrap-versioned-expiry))
 
-(defn redirect-routes [request]
-  (let [{:keys [scheme uri]} request
-        proper-uri (str (name scheme)
-                        "://"
-                        config/canonical-host
-                        uri)]
-    {:status 302
-     :headers {"Location" proper-uri}
-     :body (str "<a href='" proper-uri "'>"
-                proper-uri
-                "</a>")}))
+(noir/defpage "/" [] (welcome-page))
 
-(def host-handlers (reduce into
-                           {:default (routes dynamic-routes resource-routes)}
-                           [(for [host config/redirect-hosts]
-                              [host redirect-routes])
-                            (for [[host route] [[config/static-host resource-routes]
-                                                [config/dynamic-host dynamic-routes]]
-                                  :when host]
-                              [host route])]))
-
-(def app (-> (split-hosts host-handlers)
-             wrap-404
-             wrap-gzip))
+(server/add-middleware wrap-request-bindings)
+(server/add-middleware wrap-gzip)
 
 (let [default-jetty-port 8080]
-  (defn run []
+  (defn -main [& _]
     (prepare-mongo)
-    (run-jetty (var app) {:join? *block-server*
-                          :port (get config :jetty-port default-jetty-port)})))
-
-(defn -main [& args]
-  (binding [*block-server* true]
-    (run)))
+    (server/start
+     (get config :jetty-port default-jetty-port)
+     {:session-store (mongo-session :sessions)})))

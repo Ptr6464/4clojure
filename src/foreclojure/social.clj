@@ -1,6 +1,6 @@
 (ns foreclojure.social
   (:require [tentacles.gists          :as   gist]
-            [sandbar.stateful-session :as   session])
+            [noir.session             :as   session])
   (:import  [java.net                 URLEncoder])
   (:use     [foreclojure.template     :only [def-page]]
             [foreclojure.utils        :only [escape-html]]
@@ -72,8 +72,8 @@
 (def-page share-page []
   {:title "Share your code!"
    :content
-   (if-let [[id code] (session/session-get :code)]
-     (let [user (session/session-get :user)
+   (if-let [[id code] (session/get :code)]
+     (let [user (session/get :user)
            gist-url (gist! user id code)
            gist-link (if gist-url
                        [:div {:id "shared-code-box"}
