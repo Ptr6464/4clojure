@@ -1,8 +1,5 @@
 (ns foreclojure.feeds
-  (:use [clojure.contrib.prxml :only [prxml]]))
-
-(defn escape [x]
-  (str "<![CDATA[" x "]>"))
+  (:require [clojure.data.xml :as xml]))
 
 (defn create-feed
   "Creates a feed with title, link, description, a link to the location of the feed itself, and is populated with a collection of items in the following format:
@@ -12,18 +9,19 @@
          [:description \"Description of Item\"]]"
   [feed-title feed-link feed-description resource-link items]
   (with-out-str
-    (prxml [:decl! {:version "1.0"}]
-           [:rss {:version "2.0"
-                  :xmlns:atom "http://www.w3.org/2005/Atom"}
-            [:channel
-             [:atom:link
-              {:href resource-link
-               :rel "self"
-               :type "application/rss+xml"}]
-             [:title feed-title]
-             [:link feed-link]
-             [:description (escape feed-description)]
-             items]])))
+    (xml/emit
+     (xml/sexp-as-element [:rss {:version "2.0"
+                                 :xmlns:atom "http://www.w3.org/2005/Atom"}
+                           [:channel
+                            [:atom:link
+                             {:href resource-link
+                              :rel "self"
+                              :type "application/rss+xml"}]
+                            [:title feed-title]
+                            [:link feed-link]
+                            [:description feed-description]
+                            items]])
+     :xml-declaration true)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
