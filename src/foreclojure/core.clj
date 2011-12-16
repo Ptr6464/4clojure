@@ -15,8 +15,6 @@
             [noir.server               :as   server]
             [noir.core                 :as   noir]))
 
-;; The 404 route has to come before the resources, otherwise resources
-;; wont be found.
 (noir/defpartial render-404 []
   [:head
    [:title "4clojure: Page not found"]]
@@ -27,9 +25,6 @@
 
 (set-page! 404 (render-404))
 
-;; We want for this specific route to have this middleware applied.
-;; Noir doesn't currently have a way to do special resource stuff,
-;; so we're hacking around that a bit.
 (noir/compojure-route
  (-> (ring/resources "/")
      ring/wrap-url-as-file
