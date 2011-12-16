@@ -57,7 +57,7 @@
                   "\n\n"
                   solution)]
     (try
-      (:html_url (gist/new-gist {filename text}))
+      (:html_url (gist/create-gist {filename text}))
       (catch Throwable _))))
 
 (defn tweet-solution [id gist-url & [link-text]]
