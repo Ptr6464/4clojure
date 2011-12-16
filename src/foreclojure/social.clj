@@ -1,5 +1,5 @@
 (ns foreclojure.social
-  (:require [clj-github.gists         :as   gist]
+  (:require [tentacles.gists          :as   gist]
             [sandbar.stateful-session :as   session])
   (:import  [java.net                 URLEncoder])
   (:use     [foreclojure.template     :only [def-page]]
@@ -57,9 +57,7 @@
                   "\n\n"
                   solution)]
     (try
-      (->> (gist/new-gist {} filename text)
-           :repo
-           (str "https://gist.github.com/"))
+      (:html_url (gist/new-gist {filename text}))
       (catch Throwable _))))
 
 (defn tweet-solution [id gist-url & [link-text]]
