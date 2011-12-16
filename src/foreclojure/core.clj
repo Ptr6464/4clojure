@@ -8,7 +8,8 @@
             [ring.middleware.gzip      :only [wrap-gzip]]
             [mongo-session.core        :only [mongo-session]]
             [foreclojure.static        :only [welcome-page]]
-            [foreclojure.ring-utils    :only [static-url wrap-request-bindings]])
+            [foreclojure.ring-utils    :only [static-url wrap-request-bindings]]
+            [noir.statuses             :only [set-page!]])
   (:require [foreclojure.config        :as   config]
             [foreclojure.ring          :as   ring]
             [noir.server               :as   server]
@@ -24,7 +25,7 @@
     [:p {:style "text-align: center; width: 100%; margin-top: 45px; font-family: helvetica; color: gray; font-size: 25px;"} "404 &mdash; Page not found."]
     [:img {:style "margin-left: 18px;" :src (static-url "images/4clj-gus-confused-small.png")}]]])
 
-(noir/post-route [:any "*"] {} (render-404))
+(set-page! 404 (render-404))
 
 ;; We want for this specific route to have this middleware applied.
 ;; Noir doesn't currently have a way to do special resource stuff,
