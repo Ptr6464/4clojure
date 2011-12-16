@@ -30,7 +30,7 @@
 ;; Noir doesn't currently have a way to do special resource stuff,
 ;; so we're hacking around that a bit.
 (noir/compojure-route
- (-> (ring/resources "/*")
+ (-> (ring/resources "/")
      ring/wrap-url-as-file
      wrap-file-info
      ring/wrap-versioned-expiry))
