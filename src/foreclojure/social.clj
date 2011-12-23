@@ -4,7 +4,6 @@
   (:import  [java.net             URLEncoder])
   (:use     [foreclojure.utils    :only [escape-html]]
             [foreclojure.template :only [html-doc]]
-            [compojure.core       :only [defroutes GET]]
             [hiccup.page-helpers  :only [link-to]]
             [somnium.congomongo   :only [fetch-one]]
             [noir.core            :only [defpage]]))
