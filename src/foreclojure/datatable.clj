@@ -1,12 +1,7 @@
 (ns foreclojure.datatable
-  (:require [cheshire.core  :as   json])
-  (:use     [foreclojure.ring :only [wrap-json wrap-debug]]
-            [foreclojure.users :only [user-datatable-query]]
-            [compojure.core :only [routes GET]]))
+  (:use [foreclojure.users :only [user-datatable-query]]
+        [noir.core         :only [defpage]]
+        [noir.response     :only [json]]))
 
-(def datatable-routes
-  (-> (routes
-       (GET "/datatable/users" [& more]
-         {:body (user-datatable-query more)
-          :status 200}))
-      (wrap-json)))
+(defpage "/datatable/users" {:as all}
+  (json (user-datatable-query all)))
