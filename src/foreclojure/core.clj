@@ -7,15 +7,21 @@
             [ring.middleware.file-info :only [wrap-file-info]]
             [ring.middleware.gzip      :only [wrap-gzip]]
             [mongo-session.core        :only [mongo-session]]
-            [foreclojure.static        :only [welcome-page]]
             [foreclojure.ring-utils    :only [static-url wrap-request-bindings]]
+            [noir.core                 :only [defpartial]]
             [noir.statuses             :only [set-page!]])
   (:require [foreclojure.config        :as   config]
             [foreclojure.ring          :as   ring]
             [noir.server               :as   server]
-            [noir.core                 :as   noir]))
+            ;; Views. Eventually, views and models will be separated, in which case we'll
+            ;; be able to use noir's loading capabilities. Until then, we'll just require
+            ;; them.
+            foreclojure.static
+            foreclojure.login
+            foreclojure.register
+            foreclojure.settings))
 
-(noir/defpartial render-404 []
+(defpartial render-404 []
   [:head
    [:title "4clojure: Page not found"]]
   [:body
@@ -28,8 +34,6 @@
 (server/wrap-route :resources ring/wrap-url-as-file)
 (server/wrap-route :resources wrap-file-info)
 (server/wrap-route :resources ring/wrap-versioned-expiry)
-
-(noir/defpage "/" [] (welcome-page))
 
 (server/add-middleware wrap-request-bindings)
 (server/add-middleware wrap-gzip)
