@@ -1,13 +1,13 @@
 (ns foreclojure.test.settings
-  (:require [sandbar.stateful-session :as   session]
+  (:require [noir.session             :as   session]
             [ring.util.response       :as   response])
   (:import  [org.jasypt.util.password StrongPasswordEncryptor])
-  (:use [foreclojure.settings])
-  (:use [foreclojure.messages     :only [err-msg]])
-  (:use [clojure.test])
-  (:use [midje.sweet])
-  (:use [foreclojure.utils :only [get-user assuming flash-error flash-msg]])
-  (:use [somnium.congomongo :only [update! fetch-one]]))
+  (:use foreclojure.settings
+        [foreclojure.messages         :only [err-msg]]
+        clojure.test
+        midje.sweet
+        [foreclojure.utils            :only [get-user assuming flash-error flash-msg]]
+        [somnium.congomongo           :only [update! fetch-one]]))
   
 
 
@@ -31,8 +31,8 @@
                          (fetch-one :users :where {:user new-name}) => nil
                          (fetch-one :users :where {:email email :user {:$ne old-name}}) => nil
                          (update! :users anything anything :upsert false) => nil
-                         (session/session-put! :user anything) => nil
-                         (session/session-get :user) => old-name
+                         (session/put! :user anything) => nil
+                         (session/get :user) => old-name
                          (get-user old-name) => {:user old-name :pwd enpwd}]
       (fact "about do-update-settings! - good inputs"
           (do-update-settings! new-name old-pwd new-pwd new-pwd email false false) => truthy

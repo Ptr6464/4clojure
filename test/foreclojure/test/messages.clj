@@ -1,7 +1,7 @@
 (ns foreclojure.test.messages
-  (:use [foreclojure.messages     :only [err-msg]])
-  (:use [clojure.test])
-  (:use [midje.sweet]))
+  (:use [foreclojure.messages :only [err-msg]]
+        clojure.test
+        midje.sweet))
 
 (def filler "BAKE ME COOKIES")
 

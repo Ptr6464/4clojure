@@ -1,11 +1,11 @@
 (ns foreclojure.test.solutions
   (:require [clojure.string       :as   s])
-  (:use     [somnium.congomongo   :only [fetch-one update!]])
-  (:use     [useful.debug         :only [?]])            
-  (:use     [foreclojure.messages :only [err-msg]])
-  (:use     [foreclojure.solutions])
-  (:use     [clojure.test])
-  (:use     [midje.sweet]))
+  (:use     [somnium.congomongo   :only [fetch-one update!]]
+            [useful.debug         :only [?]]            
+            [foreclojure.messages :only [err-msg]]
+            foreclojure.solutions
+            clojure.test
+            midje.sweet))
 
 (deftest test-get-solution
   "this test covers the getting solutions to display"

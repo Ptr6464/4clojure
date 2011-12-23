@@ -1,9 +1,9 @@
 (ns foreclojure.test.core
-  (:use [foreclojure.core]
-        [clojure.test]
-        [foreclojure.users]
-        [foreclojure.problems]
-        [foreclojure.mongo]))
+  (:use foreclojure.core
+        clojure.test
+        foreclojure.users
+        foreclojure.problems
+        foreclojure.mongo))
 
 (prepare-mongo)
 

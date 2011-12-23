@@ -1,15 +1,12 @@
 (ns foreclojure.test.register
-  (:require [sandbar.stateful-session :as   session]
-            [ring.util.response       :as   response])
-  (:use [foreclojure.register])
-  (:use [foreclojure.messages     :only [err-msg]])
-  (:use [clojure.test])
-  (:use [midje.sweet])
-  (:use [foreclojure.utils :only [form-row assuming flash-error]])
-  (:use [somnium.congomongo :only [insert! fetch-one]]))
-
-
-
+  (:require [noir.session       :as   session]
+            [ring.util.response :as   response])
+  (:use foreclojure.register
+        [foreclojure.messages   :only [err-msg]]
+        clojure.test
+        midje.sweet
+        [foreclojure.utils      :only [form-row assuming flash-error]]
+        [somnium.congomongo     :only [insert! fetch-one]]))
 
 (deftest test-do-register
   (let [uname "username"
@@ -24,7 +21,7 @@
                          (fetch-one :users :where {:user uname}) => nil
                          (fetch-one :users :where {:email email}) => nil
                          (insert! :users anything) => nil
-                         (session/session-put! :user anything) => nil
+                         (session/put! :user anything) => nil
                          (session/flash-put! :user anything) => nil
                          (session/flash-put! :email anything) => nil]
       (fact "about do-register - good inputs"
