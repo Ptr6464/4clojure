@@ -46,14 +46,6 @@
     (println "In" label)
     (? (handler (? request)))))
 
-(let [content-type [:headers "Content-Type"]]
-  (defn wrap-json [handler]
-    (fn [request]
-      (when-let [resp (handler request)]
-        (-> resp
-            (assoc-in content-type "application/json")
-            (update-in [:body] json/generate-string))))))
-
 (defn split-hosts [host-handlers]
   (let [default (:default host-handlers)]
     (fn [request]
