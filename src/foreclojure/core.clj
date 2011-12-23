@@ -23,7 +23,8 @@
             foreclojure.golf
             foreclojure.version
             foreclojure.api
-            foreclojure.datatable))
+            foreclojure.datatable
+            foreclojure.graphs))
 
 (defpartial render-404 []
   [:head

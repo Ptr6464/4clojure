@@ -1,12 +1,12 @@
 (ns foreclojure.graphs
-  (:require [incanter.charts         :as   chart]
-            [incanter.core           :as   incanter]
-            [incanter.stats          :as   stats])
-  (:import  [java.io                 ByteArrayInputStream
-                                     ByteArrayOutputStream])
-  (:use     [compojure.core          :only [defroutes GET]]
-            [foreclojure.problems    :only [solved-stats]]
-            [useful.utils            :only [with-adjustments]]))
+  (:require [incanter.charts      :as   chart]
+            [incanter.core        :as   incanter]
+            [incanter.stats       :as   stats])
+  (:import  [java.io              ByteArrayInputStream
+                                  ByteArrayOutputStream])
+  (:use     [foreclojure.problems :only [solved-stats]]
+            [useful.utils         :only [with-adjustments]]
+            [noir.core            :only [defpage]]))
 
 (defn un-group
   "Turn a compact set of [data-point num-repetitions] pairs into a
@@ -52,8 +52,10 @@
      :headers {"Content-Type" "image/png"}
      :body in}))
 
-(defroutes graph-routes
-  (GET "/leagues/golf/:id" [id best curr]
-    (with-adjustments #(when (seq %) (Integer/parseInt %)) [id best curr]
-      (serve-plot (make-problem-plot id best curr)))))
+(defpage "/leagues/golf/:id" {:keys [id best curr]}
+  (with-adjustments #(when (seq %)
+                       (Integer/parseInt %))
+    [id best curr]
+    (serve-plot
+     (make-problem-plot id best curr))))
 
