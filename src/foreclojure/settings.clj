@@ -1,17 +1,17 @@
 (ns foreclojure.settings
-  (:require [sandbar.stateful-session :as   session]
+  (:require [noir.session             :as   session]
             [ring.util.response       :as   response])
   (:import  [org.jasypt.util.password StrongPasswordEncryptor])
   (:use     [hiccup.form-helpers      :only [form-to label text-field password-field check-box]]
             [foreclojure.utils        :only [from-mongo flash-error flash-msg with-user form-row assuming send-email login-url plausible-email?]]
-            [foreclojure.template     :only [def-page content-page]]
+            [foreclojure.template     :only [html-doc content-page]]
             [foreclojure.users        :only [disable-codebox? hide-solutions? gravatar-img]]
             [foreclojure.messages     :only [err-msg]]
-            [compojure.core           :only [defroutes GET POST]]
             [useful.map               :only [keyed]]
             [clojail.core             :only [thunk-timeout]]
             [clojure.stacktrace       :only [print-cause-trace]]
-            [somnium.congomongo       :only [update! fetch-one]]))
+            [somnium.congomongo       :only [update! fetch-one]]
+            [noir.core                :only [defpage]]))
 
 (defn account-settings-box [user email]
   (list
@@ -42,30 +42,32 @@
     "Hide my solutions"]
    [:br]))
 
-(def-page settings-page []
-  (with-user [{:keys [user email] :as user-obj}]
-    {:title "Account settings"
-     :content
-     (content-page
-      {:main
+(defn settings-page []
+  (html-doc
+   (with-user [{:keys [user email] :as user-obj}]
+     {:title "Account settings"
+      :content
+      (content-page
+       {:main
         (form-to [:post "/settings"]
-         (list
-          [:h2 "Change settings for " user]
-          [:div#account-settings (account-settings-box user email)]
-          [:hr]
-          [:h3 "Disable JavaScript Code Box"]
-          [:div#settings-codebox (js-settings-box user-obj)]
-          [:hr]
-          [:h3 "Hide My Solutions"]
-          [:div#settings-follow (hide-settings-box user-obj)]
-          [:hr]
-          [:h3 "Profile Image"]
-          [:div (gravatar-img {:email email :size 64})]
-          [:p "To change your profile image, visit <a href='http://gravatar.com' target='_blank'>Gravatar</a> and edit the image for '" email "'."]
-          [:div#button-div
-            [:button {:type "submit"} "Submit"]]))})}))
+                 (list
+                  [:h2 "Change settings for " user]
+                  [:div#account-settings (account-settings-box user email)]
+                  [:hr]
+                  [:h3 "Disable JavaScript Code Box"]
+                  [:div#settings-codebox (js-settings-box user-obj)]
+                  [:hr]
+                  [:h3 "Hide My Solutions"]
+                  [:div#settings-follow (hide-settings-box user-obj)]
+                  [:hr]
+                  [:h3 "Profile Image"]
+                  [:div (gravatar-img {:email email :size 64})]
+                  [:p "To change your profile image, visit <a href='http://gravatar.com' target='_blank'>Gravatar</a> and edit the image for '" email "'."]
+                  [:div#button-div
+                   [:button {:type "submit"} "Submit"]]))})})))
 
-(defn do-update-settings! [new-username old-pwd new-pwd repeat-pwd email disable-codebox hide-solutions]
+(defn do-update-settings! [new-username old-pwd new-pwd repeat-pwd
+                           email disable-codebox hide-solutions]
   (with-user [{:keys [user pwd]}]
     (let [encryptor (StrongPasswordEncryptor.)
           new-pwd-hash (.encryptPassword encryptor new-pwd)
@@ -96,12 +98,15 @@
                              :disable-code-box (boolean disable-codebox)
                              :hide-solutions (boolean hide-solutions)}}
                      :upsert false)
-            (session/session-put! :user new-lower-user)
+            (session/put! :user new-lower-user)
             (flash-msg "/problems"
               (str "Account for " new-lower-user " updated successfully")))
           (flash-error "/settings" why)))))
 
-(defroutes settings-routes
-  (GET  "/settings" [] (settings-page))
-  (POST "/settings" {{:strs [new-username old-pwd pwd repeat-pwd email disable-codebox hide-solutions]} :form-params}
-    (do-update-settings! new-username old-pwd pwd repeat-pwd email disable-codebox hide-solutions)))
+(defpage "/settings" []
+  (settings-page))
+
+(defpage [:post "/settings"] {:keys [new-username old-pwd pwd repeat-pwd
+                                     email disable-codebox hide-solutions]}
+  (do-update-settings! new-username old-pwd pwd repeat-pwd
+                       email disable-codebox hide-solutions))
