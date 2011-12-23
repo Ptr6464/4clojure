@@ -2,12 +2,14 @@
   (:require [foreclojure.users        :as      users]
             [noir.session             :as      session]
             [clojure.string           :as      s]
-            [ring.util.response       :as      response]
-            [cheshire.core            :as      json])
+            [ring.util.response       :as      response])
   (:import  [org.apache.commons.mail  EmailException])
-  (:use     [foreclojure.utils        :only    [from-mongo get-user get-solved login-link flash-msg flash-error row-class approver? can-submit? send-email image-builder if-user with-user as-int maybe-update escape-html]]
+  (:use     [foreclojure.utils        :only    [from-mongo get-user get-solved login-link
+                                                flash-msg flash-error row-class approver?
+                                                can-submit? send-email image-builder if-user
+                                                with-user as-int maybe-update escape-html]]
             [foreclojure.ring-utils   :only    [*url*]]
-            [foreclojure.template     :only    [def-page content-page]]
+            [foreclojure.template     :only    [content-page html-doc]]
             [foreclojure.social       :only    [tweet-link gist!]]
             [foreclojure.feeds        :only    [create-feed]]
             [foreclojure.users        :only    [golfer? get-user-id disable-codebox?]]
@@ -19,7 +21,9 @@
             [hiccup.page-helpers      :only    [link-to]]
             [hiccup.core              :only    [html]]
             [useful.debug             :only    [?]]
-            [compojure.core           :only    [defroutes GET POST]]))
+            [compojure.core           :only    [defroutes GET POST]]
+            [noir.response            :only    [json]]
+            [noir.core                :only    [defpage defpartial]]))
 
 (def solved-stats (agent {:total 0}))
 
@@ -252,79 +256,80 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
 
 (defn rest-run-code [id raw-code]
   (let [{:keys [message error url num-tests-passed]} (run-code id raw-code)]
-    (json/generate-string {:failingTest num-tests-passed
-                           :message message
-                           :error error
-                           :golfScore (html (render-golf-score))
-                           :golfChart (html (render-golf-chart))})))
+    {:failingTest num-tests-passed
+     :message message
+     :error error
+     :golfScore (html (render-golf-score))
+     :golfChart (html (render-golf-chart))}))
 
 (defn wants-no-javascript-codebox? []
   (if-user [{:keys [user] :as user-obj}]
     (disable-codebox? user-obj)))
 
-(def-page code-box [id]
-  (let [{:keys [_id title difficulty tags description
-                restricted tests approved user]}
-        (get-problem (Integer. id)),
-        title (str (when-not approved
-                     "Unapproved: ")
-                   title)]
+(defn code-box [id]
+  (html-doc
+   (let [{:keys [_id title difficulty tags description
+                 restricted tests approved user]}
+         (get-problem (Integer. id)),
+         title (str (when-not approved
+                      "Unapproved: ")
+                    title)]
 
-    {:title (str _id ". " title)
-     :content
-     [:div#prob-container
-      [:div#prob-number "#" id]
-      [:div#prob-title title]
-      (if-user [{:keys [solved]}]
-        (if (some #{(Integer. id)} solved)
-          (link-to (str "/problem/solutions/" id)
-                   [:button#solutions-link {:type "submit"} "Solutions"])
-          [:div {:style "clear: right; margin-bottom: 15px;"} "&nbsp;"])
-        [:div {:style "clear: right; margin-bottom: 15px;"} "&nbsp;"])
-      [:hr]
-      [:table#tags
-       [:tr [:td "Difficulty:"] [:td (or difficulty "N/A")]]
-       [:tr [:td "Topics:"]     [:td (s/join " " tags)]]]
-      [:br]
-      (when-not approved
-        [:div#submitter "Submitted by: "
-         (users/mailto user)])
-      [:br]
-      [:div#prob-desc
-       description[:br]
-       (render-test-cases tests)
-       (when restricted
-         [:div#restrictions
-          [:u "Special Restrictions"] [:br]
-          (map (partial vector :li) restricted)])]
-      [:div
-       [:div.message
-        [:span#message-text (session/flash-get :message)]
-        [:span#error-message-text.error (session/flash-get :error)]]
-       [:div#golfscore
-        (render-golf-score)]]
-      (form-to {:id "run-code"} [:post *url*]
-        [:br]
-        [:br]
-        [:p#instruct "Code which fills in the blank: "]
-        (when (wants-no-javascript-codebox?) [:span#disable-javascript-codebox])
-        (text-area {:id "code-box"
-                    :name "code"
-                    :spellcheck "false"}
-                   :code (escape-html
-                          (or (session/flash-get :code)
-                              (-> (session/get :user)
-                                  (get-user-id)
-                                  (get-solution ,,, _id)))))
-        [:div#golfgraph
-         (render-golf-chart)]
-        (hidden-field :id id)
-        [:br]
-        [:button.large {:id "run-button" :type "submit"} "Run"]
-        (when-not approved
-          [:span [:button.large {:id "reject-button"} "Reject"]
-           [:button.large {:id "edit-button"} "Edit"]
-           [:button.large {:id "approve-button"} "Approve"]]))]}))
+     {:title (str _id ". " title)
+      :content
+      [:div#prob-container
+       [:div#prob-number "#" id]
+       [:div#prob-title title]
+       (if-user [{:keys [solved]}]
+                (if (some #{(Integer. id)} solved)
+                  (link-to (str "/problem/solutions/" id)
+                           [:button#solutions-link {:type "submit"} "Solutions"])
+                  [:div {:style "clear: right; margin-bottom: 15px;"} "&nbsp;"])
+                [:div {:style "clear: right; margin-bottom: 15px;"} "&nbsp;"])
+       [:hr]
+       [:table#tags
+        [:tr [:td "Difficulty:"] [:td (or difficulty "N/A")]]
+        [:tr [:td "Topics:"]     [:td (s/join " " tags)]]]
+       [:br]
+       (when-not approved
+         [:div#submitter "Submitted by: "
+          (users/mailto user)])
+       [:br]
+       [:div#prob-desc
+        description[:br]
+        (render-test-cases tests)
+        (when restricted
+          [:div#restrictions
+           [:u "Special Restrictions"] [:br]
+           (map (partial vector :li) restricted)])]
+       [:div
+        [:div.message
+         [:span#message-text (session/flash-get :message)]
+         [:span#error-message-text.error (session/flash-get :error)]]
+        [:div#golfscore
+         (render-golf-score)]]
+       (form-to {:id "run-code"} [:post *url*]
+                [:br]
+                [:br]
+                [:p#instruct "Code which fills in the blank: "]
+                (when (wants-no-javascript-codebox?) [:span#disable-javascript-codebox])
+                (text-area {:id "code-box"
+                            :name "code"
+                            :spellcheck "false"}
+                           :code (escape-html
+                                  (or (session/flash-get :code)
+                                      (-> (session/get :user)
+                                          (get-user-id)
+                                          (get-solution ,,, _id)))))
+                [:div#golfgraph
+                 (render-golf-chart)]
+                (hidden-field :id id)
+                [:br]
+                [:button.large {:id "run-button" :type "submit"} "Run"]
+                (when-not approved
+                  [:span [:button.large {:id "reject-button"} "Reject"]
+                   [:button.large {:id "edit-button"} "Edit"]
+                   [:button.large {:id "approve-button"} "Approve"]]))]})))
 
 (defn problem-page [id]
   (let [error #(flash-error "/problems" %)
@@ -336,33 +341,34 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
                               " to view unapproved problems")))
       (error "No such problem!"))))
 
-(def-page show-solutions-page [problem-id]
-  {:title "4Clojure - Problem Solutions"
-   :content
-   (list
-    [:div.message (session/flash-get :message)]
-    [:div#problems-error.error (session/flash-get :error)]
-    [:h3 {:style "margin-top: -20px;"} "Solutions:"]
-    (with-user [{:keys [_id following]}]
-      (list
-       (let [user-code (get-solution :public _id problem-id)]
-         [:pre.solution-code.solution-user-code (escape-html user-code)])
-       (if (empty? following)
-         [:p "You can only see solutions of users whom you follow.  Click on any name from the " (link-to "/users" "users") " listing page to see their profile, and click follow from there."]
-         (if (some (complement nil?) (map #(get-solution :public % problem-id) following))
-           (interpose [:hr.solution]
-                      (for [f-user-id following
-                            :let [f-user (:user (from-mongo
-                                                 (fetch-one :users
-                                                            :where {:_id f-user-id}
-                                                            :only [:user])))
-                                  f-code (get-solution :public
-                                                       f-user-id problem-id)]
-                            :when f-code]
-                        [:div.follower-solution
-                         [:div.solution-username (str f-user "'s solution:")]
-                         [:pre.solution-code (escape-html f-code)]]))
-           [:p "None of the users you follow have solved this problem yet!"])))))})
+(defn show-solutions-page [problem-id]
+  (html-doc
+   {:title "4Clojure - Problem Solutions"
+    :content
+    (list
+     [:div.message (session/flash-get :message)]
+     [:div#problems-error.error (session/flash-get :error)]
+     [:h3 {:style "margin-top: -20px;"} "Solutions:"]
+     (with-user [{:keys [_id following]}]
+       (list
+        (let [user-code (get-solution :public _id problem-id)]
+          [:pre.solution-code.solution-user-code (escape-html user-code)])
+        (if (empty? following)
+          [:p "You can only see solutions of users whom you follow.  Click on any name from the " (link-to "/users" "users") " listing page to see their profile, and click follow from there."]
+          (if (some (complement nil?) (map #(get-solution :public % problem-id) following))
+            (interpose [:hr.solution]
+                       (for [f-user-id following
+                             :let [f-user (:user (from-mongo
+                                                  (fetch-one :users
+                                                             :where {:_id f-user-id}
+                                                             :only [:user])))
+                                   f-code (get-solution :public
+                                                        f-user-id problem-id)]
+                             :when f-code]
+                         [:div.follower-solution
+                          [:div.solution-username (str f-user "'s solution:")]
+                          [:pre.solution-code (escape-html f-code)]]))
+            [:p "None of the users you follow have solved this problem yet!"])))))}))
 
 (defn show-solutions [id]
   (let [problem-id (Integer. id)
@@ -378,40 +384,41 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
 
 (let [checkbox-img (image-builder {true ["images/checkmark.png" "completed"]
                                    false ["images/empty-sq.png" "incomplete"]})]
-  (def-page problem-list-page []
-    {:title "4clojure - Problem Listing"
-     :content
-     (list
-      [:div.message (session/flash-get :message)]
-      [:div#problems-error.error (session/flash-get :error)]
-      (link-to "/problems/rss" [:div {:class "rss"}])
-      [:table#problem-table.my-table
-       [:thead
-        [:tr
-         [:th "Title"]
-         [:th "Difficulty"]
-         [:th "Topics"]
-         [:th "Submitted By"]
-         [:th "Times Solved"]
-         [:th "Solved?"]]]
-       (let [solved (get-solved (session/get :user))
-             problems (get-problem-list)]
-         (map-indexed
-          (fn [x {:keys [title difficulty tags user], id :_id}]
-            [:tr (row-class x)
-             [:td.titlelink
-              [:a {:href (str "/problem/" id)}
-               title]]
-             [:td.centered difficulty]
-             [:td.centered
-              (s/join " " (map #(str "<span class='tag'>" % "</span>")
-                               tags))]
-             [:td.centered user]
-             [:td.centered (get-in @solved-stats [:solved-counts id] 0)]
-             [:td.centered (checkbox-img (contains? solved id))]])
-          problems))])}))
+  (defn problem-list-page []
+    (html-doc
+     {:title "4clojure - Problem Listing"
+      :content
+      (list
+       [:div.message (session/flash-get :message)]
+       [:div#problems-error.error (session/flash-get :error)]
+       (link-to "/problems/rss" [:div {:class "rss"}])
+       [:table#problem-table.my-table
+        [:thead
+         [:tr
+          [:th "Title"]
+          [:th "Difficulty"]
+          [:th "Topics"]
+          [:th "Submitted By"]
+          [:th "Times Solved"]
+          [:th "Solved?"]]]
+        (let [solved (get-solved (session/get :user))
+              problems (get-problem-list)]
+          (map-indexed
+           (fn [x {:keys [title difficulty tags user], id :_id}]
+             [:tr (row-class x)
+              [:td.titlelink
+               [:a {:href (str "/problem/" id)}
+                title]]
+              [:td.centered difficulty]
+              [:td.centered
+               (s/join " " (map #(str "<span class='tag'>" % "</span>")
+                                tags))]
+              [:td.centered user]
+              [:td.centered (get-in @solved-stats [:solved-counts id] 0)]
+              [:td.centered (checkbox-img (contains? solved id))]])
+           problems))])})))
 
-(defn generate-unapproved-problems-list []
+(defpartial generate-unapproved-problems-list []
   (let [problems (get-problem-list {:approved false})]
     (list
      [:table#unapproved-problems.my-table
@@ -434,11 +441,12 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
           [:td.centered user]])
        problems)])))
 
-(def-page unapproved-problem-list-page []
-  {:title "Unapproved problems"
-   :content
-   (content-page
-    {:main (generate-unapproved-problems-list)})})
+(defn unapproved-problem-list-page []
+  (html-doc
+   {:title "Unapproved problems"
+    :content
+    (content-page
+     {:main (generate-unapproved-problems-list)})}))
 
 (defn access-unapproved-problem-list-page []
   (let [user (session/get :user)]
@@ -446,31 +454,32 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
       (unapproved-problem-list-page)
       (flash-error "/problems" "You cannot access this page"))))
 
-(def-page problem-submission-page []
-  {:title "Submit a problem"
-   :content
-   (list
-    [:div.instructions
-     [:p "Thanks for choosing to submit a problem. Please make sure that you own the rights to the code you are submitting and that you wouldn't mind having us use the code as a 4clojure problem.  Once you've submitted your problem, it won't appear on the site until someone from the 4clojure team has had a chance to review it."]]
-    (form-to {:id "problem-submission"} [:post "/problems/submit"]
-      (hidden-field :author (session/flash-get :author))
-      (hidden-field :prob-id (session/flash-get :prob-id))
-      (label :title "Problem Title")
-      (text-field :title  (session/flash-get :title))
-      (label :diffulty "Difficulty")
-      (drop-down :difficulty ["Elementary" "Easy" "Medium" "Hard"] (session/flash-get :difficulty))
-      (label :tags "Topics (space separated)")
-      (text-field :tags  (session/flash-get :tags))
-      (label :restricted "Restricted Functions (space separated)")
-      (text-field :restricted  (session/flash-get :restricted))
-      (label :description "Problem Description")
-      (text-area {:id "problem-description"} :description  (session/flash-get :description))
-      [:br]
-      (label :code-box "Problem test cases. Use two underscores (__) for user input. Individual tests can span multiple lines, but each test should be separated by a totally blank line.")
-      (text-area {:id "code-box" :spellcheck "false"}
-                 :code (session/flash-get :tests))
-      [:p
-       [:button.large {:id "submission-button" :type "submit"} "Submit"]]))})
+(defn problem-submission-page []
+  (html-doc
+   {:title "Submit a problem"
+    :content
+    (list
+     [:div.instructions
+      [:p "Thanks for choosing to submit a problem. Please make sure that you own the rights to the code you are submitting and that you wouldn't mind having us use the code as a 4clojure problem.  Once you've submitted your problem, it won't appear on the site until someone from the 4clojure team has had a chance to review it."]]
+     (form-to {:id "problem-submission"} [:post "/problems/submit"]
+              (hidden-field :author (session/flash-get :author))
+              (hidden-field :prob-id (session/flash-get :prob-id))
+              (label :title "Problem Title")
+              (text-field :title  (session/flash-get :title))
+              (label :diffulty "Difficulty")
+              (drop-down :difficulty ["Elementary" "Easy" "Medium" "Hard"] (session/flash-get :difficulty))
+              (label :tags "Topics (space separated)")
+              (text-field :tags  (session/flash-get :tags))
+              (label :restricted "Restricted Functions (space separated)")
+              (text-field :restricted  (session/flash-get :restricted))
+              (label :description "Problem Description")
+              (text-area {:id "problem-description"} :description  (session/flash-get :description))
+              [:br]
+              (label :code-box "Problem test cases. Use two underscores (__) for user input. Individual tests can span multiple lines, but each test should be separated by a totally blank line.")
+              (text-area {:id "code-box" :spellcheck "false"}
+                         :code (session/flash-get :tests))
+              [:p
+               [:button.large {:id "submission-button" :type "submit"} "Submit"]]))}))
 
 (defn create-problem
   "create a user submitted problem"
@@ -579,39 +588,65 @@ Return a map, {:message, :error, :url, :num-tests-passed}."
       (flash-msg "/problems" (str "Problem " id " was rejected and deleted.")))
     (flash-error "/problems" "You do not have permission to access this page")))
 
-(defn total-solved-count []
-  (html (:total @solved-stats)))
+(defpartial total-solved-count []
+  (:total @solved-stats))
 
-(defroutes problems-routes
-  (GET "/problems" [] (problem-list-page))
-  (GET "/problems/solved" [] (total-solved-count))
-  (GET "/problem/:id" [id]
-    (if-let [id-int (as-int id)]
-      (problem-page id-int)
-      (flash-error "/problems"
-        (format "'%s' is not a valid problem number." id))))
-  (GET "/problems/submit" [] (problem-submission-page))
-  (POST "/problems/submit" [prob-id author title difficulty tags restricted description code]
-    (create-problem title difficulty tags restricted description code (when (not= "" prob-id) (Integer. prob-id)) author))
-  (GET "/problems/unapproved" [] (access-unapproved-problem-list-page))
-  (GET "/problem/:id/edit" [id]
-    (edit-problem (Integer. id)))
-  (POST "/problem/edit" [id]
-    (edit-problem (Integer. id)))
-  (POST "/problem/approve" [id]
-    (approve-problem (Integer. id)))
-  (POST "/problem/reject" [id]
-    (reject-problem (Integer. id) "We didn't like your problem."))
-  (GET "/problem/solutions/:id" [id]
-    (show-solutions id))
-  (POST "/problem/:id" [id code]
-    (static-run-code (Integer. id) (trim-code code)))
-  (POST "/rest/problem/:id" [id code]
-    {:headers {"Content-Type" "application/json"}}
-    (rest-run-code (Integer. id) (trim-code code)))
-  (GET "/problems/rss" [] (create-feed
-                           "4Clojure: Recent Problems"
-                           "http://4clojure.com/problems"
-                           "Recent problems at 4Clojure.com"
-                           "http://4clojure.com/problems/rss"
-                           (problem-feed 20))))
+(defpage "/problems" []
+  (problem-list-page))
+
+(defpage "/problems/solved" []
+  (total-solved-count))
+
+(defpage "/problem/:id" {:keys [id]}
+  (if-let [id-int (as-int id)]
+    (problem-page id-int)
+    (flash-error
+     "/problems"
+     (format "'%s' is not a valid problem number." id))))
+
+(defpage "/problems/submit" []
+  (problem-submission-page))
+
+(defpage [:post "/problems/submit"] {:keys [prob-id author title difficulty
+                                            tags restricted description code]}
+  (create-problem title
+                  difficulty
+                  tags
+                  restricted
+                  description
+                  code
+                  (when (not= "" prob-id)
+                    (Integer. prob-id))
+                  author))
+
+(defpage "/problems/unapproved" []
+  (access-unapproved-problem-list-page))
+
+(defpage "/problem/:id/edit" {:keys [id]}
+  (edit-problem (Integer. id)))
+
+(defpage [:post "/problem/edit"] {:keys [id]}
+  (edit-problem (Integer. id)))
+
+(defpage [:post "/problem/approve"] {:keys [id]}
+  (approve-problem (Integer. id)))
+
+(defpage [:post "/problem/reject"] {:keys [id]}
+  (reject-problem (Integer. id)))
+
+(defpage "/problem/solutions/:id" {:keys [id]}
+  (show-solutions id))
+
+(defpage [:post "/problem/:id"] {:keys [id code]}
+  (static-run-code (Integer. id) (trim-code code)))
+
+(defpage [:post "/rest/problem/:id"] {:keys [id code]}
+  (json (rest-run-code (Integer. id) (trim-code code))))
+
+(defpage "/problems/rss" []
+  (create-feed
+   "4Clojure: Recent Problems"
+   "http://4clojure.com/problems"
+   "Recent problems at 4Clojure.com"
+   "http://4clojure.com/problems/rss"
+   (problem-feed 20)))

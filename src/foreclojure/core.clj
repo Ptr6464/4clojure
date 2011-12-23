@@ -25,20 +25,17 @@
 
 (set-page! 404 (render-404))
 
-(noir/compojure-route
- (-> (ring/resources "/")
-     ring/wrap-url-as-file
-     wrap-file-info
-     ring/wrap-versioned-expiry))
+(server/wrap-route :resources ring/wrap-url-as-file)
+(server/wrap-route :resources wrap-file-info)
+(server/wrap-route :resources ring/wrap-versioned-expiry)
 
 (noir/defpage "/" [] (welcome-page))
 
 (server/add-middleware wrap-request-bindings)
 (server/add-middleware wrap-gzip)
 
-(let [default-jetty-port 8080]
-  (defn -main [& _]
-    (prepare-mongo)
-    (server/start
-     (get config :jetty-port default-jetty-port)
-     {:session-store (mongo-session :sessions)})))
+(defn -main [& _]
+  (prepare-mongo)
+  (server/start
+   (get config :jetty-port 8080)
+   {:session-store (mongo-session :sessions)}))

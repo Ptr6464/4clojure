@@ -3,15 +3,16 @@
             [clojure.string         :as string]
             [noir.session           :as session]
             [cheshire.core          :as json])
-  (:use     [foreclojure.utils      :only [from-mongo row-class rank-class get-user if-user with-user]]
-            [foreclojure.template   :only [def-page content-page]]
+  (:use     [foreclojure.utils      :only [from-mongo row-class rank-class
+                                           get-user if-user with-user]]
+            [noir.core              :only [defpage]]
+            [foreclojure.template   :only [html-doc content-page]]
             [foreclojure.ring-utils :only [*http-scheme* universal-url]]
             [foreclojure.config     :only [config repo-url]]
             [somnium.congomongo     :only [fetch-one fetch update!]]
             [compojure.core         :only [defroutes GET POST]]
             [hiccup.form-helpers    :only [form-to hidden-field]]
-            [hiccup.page-helpers    :only [link-to]]
-            [hiccup.core            :only [html]])
+            [hiccup.page-helpers    :only [link-to]])
   (:import org.apache.commons.codec.digest.DigestUtils
            java.net.URLEncoder))
 
@@ -138,34 +139,36 @@
     (map-indexed
      (fn [rownum {:keys [_id email position rank user contributor solved]}]
        [rank
-        (html (list
-               (gravatar-img {:email email :class "gravatar"})
-               [:a.user-profile-link {:href (str "/user/" user)}
-                user (when contributor [:span.contributor " *"])]))
+        (list
+         (gravatar-img {:email email :class "gravatar"})
+         [:a.user-profile-link {:href (str "/user/" user)}
+          user (when contributor [:span.contributor " *"])])
         (count solved)
-        (html (following-checkbox user-id following _id user))])
+        (following-checkbox user-id following _id user)])
      user-set)))
 
-(def-page all-users-page []
-  {:title "All 4Clojure Users"
-   :content
-   (content-page
-    {:heading "All 4Clojure Users"
-     :sub-heading (list [:span.contributor "*"] "&nbsp;" (link-to repo-url "4clojure contributor"))
-     :main (generate-user-list [] "server-user-table")})})
+(defn all-users-page []
+  (html-doc
+   {:title "All 4Clojure Users"
+    :content
+    (content-page
+     {:heading "All 4Clojure Users"
+      :sub-heading (list [:span.contributor "*"] "&nbsp;" (link-to repo-url "4clojure contributor"))
+      :main (generate-user-list [] "server-user-table")})}))
 
-(def-page top-users-page []
-  (let [username (session/get :user)
-        {:keys [user-ranking top-100]} (get-top-100-and-current-user username)]
-    {:title "Top 100 Users"
-     :content
-     (content-page
-      {:heading "Top 100 Users"
-       :heading-note [:span#all-users-link]
-       :sub-heading (list (format-user-ranking user-ranking)
-                          [:span.contributor "*"] "&nbsp;"
-                          (link-to repo-url "4clojure contributor"))
-       :main (generate-user-list top-100 "user-table")})}))
+(defn top-users-page []
+  (html-doc
+   (let [username (session/get :user)
+         {:keys [user-ranking top-100]} (get-top-100-and-current-user username)]
+     {:title "Top 100 Users"
+      :content
+      (content-page
+       {:heading "Top 100 Users"
+        :heading-note [:span#all-users-link]
+        :sub-heading (list (format-user-ranking user-ranking)
+                           [:span.contributor "*"] "&nbsp;"
+                           (link-to repo-url "4clojure contributor"))
+        :main (generate-user-list top-100 "user-table")})})))
 
 ;; TODO: this is snagged from problems.clj but can't be imported due to cyclic dependency, must refactor this out.
 (defn get-problems
@@ -190,43 +193,44 @@
                     (set))]
        (filter ids (get-solved username)))))
 
-(def-page user-profile [username]
-  (let [page-title (str "User: " username)
-        {user-id :_id email :email} (get-user username)]
-    {:title page-title
-     :content
-     (list
-      [:div#profile-pic (gravatar-img {:email email, :size 80
-                                       :class "user-profile-img"
-                                       :default "images/gus-of-disapproval.png"})]
-      [:div.user-profile-name page-title]
-      (if-user [{:keys [_id following]}]
-        (if (not= _id user-id)
-          (let [[url label] (if (some #{user-id} following)
-                              ["unfollow" "Unfollow"]
-                              ["follow"   "Follow"])]
-            (form-to [:post (str "/user/" url "/" username)]
-              [:button.user-follow-button {:type "submit"} label]))
-          [:div {:style "clear: right; margin-bottom: 10px;"} "&nbsp;"])
-        [:div {:style "clear: right; margin-bottom: 10px;"} "&nbsp;"])
-      [:hr]
-      [:table
-       (for [difficulty ["Elementary" "Easy" "Medium" "Hard"]]
-         (let [solved (count (get-solved username difficulty))
-               total  (count (get-problems difficulty))]
-           [:tr
-            [:td.count-label difficulty]
-            [:td.count-value
-             [:div.progress-bar-bg
-              [:div.progress-bar
-               {:style (str "width: "
-                            (int (* 100 (/ solved total)))
-                            "%")}]]]]))
-       [:tr
-        [:td.count-total "TOTAL:"    ]
-        [:td.count-value
-         (count (get-solved username)) "/"
-         (count (get-problems))]]])}))
+(defn user-profile [username]
+  (html-doc
+   (let [page-title (str "User: " username)
+         {user-id :_id email :email} (get-user username)]
+     {:title page-title
+      :content
+      (list
+       [:div#profile-pic (gravatar-img {:email email, :size 80
+                                        :class "user-profile-img"
+                                        :default "images/gus-of-disapproval.png"})]
+       [:div.user-profile-name page-title]
+       (if-user [{:keys [_id following]}]
+                (if (not= _id user-id)
+                  (let [[url label] (if (some #{user-id} following)
+                                      ["unfollow" "Unfollow"]
+                                      ["follow"   "Follow"])]
+                    (form-to [:post (str "/user/" url "/" username)]
+                             [:button.user-follow-button {:type "submit"} label]))
+                  [:div {:style "clear: right; margin-bottom: 10px;"} "&nbsp;"])
+                [:div {:style "clear: right; margin-bottom: 10px;"} "&nbsp;"])
+       [:hr]
+       [:table
+        (for [difficulty ["Elementary" "Easy" "Medium" "Hard"]]
+          (let [solved (count (get-solved username difficulty))
+                total  (count (get-problems difficulty))]
+            [:tr
+             [:td.count-label difficulty]
+             [:td.count-value
+              [:div.progress-bar-bg
+               [:div.progress-bar
+                {:style (str "width: "
+                             (int (* 100 (/ solved total)))
+                             "%")}]]]]))
+        [:tr
+         [:td.count-total "TOTAL:"    ]
+         [:td.count-value
+          (count (get-solved username)) "/"
+          (count (get-problems))]]])})))
 
 (defn follow-user [username follow?]
   (with-user [{:keys [_id]}]
@@ -291,14 +295,25 @@
     :iTotalDisplayRecords (str (count filtered-users))
     :aaData page-users}))
 
-(defroutes users-routes
-  (GET  "/users" [] (top-users-page))
-  (GET  "/users/all" [] (all-users-page))
-  (GET  "/user/:username" [username] 
-    (if (nil? (get-user username)) 
-      {:status 404 :headers {"Content-Type" "text/plain"} :body "Error: This user does not exist, nice try though."}
-      (user-profile username)))
-  (POST "/user/follow/:username" [username] (static-follow-user username true))
-  (POST "/user/unfollow/:username" [username] (static-follow-user username false))
-  (POST "/rest/user/follow/:username" [username] (rest-follow-user username true))
-  (POST "/rest/user/unfollow/:username" [username] (rest-follow-user username false)))
+(defpage "/users" []
+  (top-users-page))
+
+(defpage "/users/all" []
+  (all-users-page))
+
+(defpage "/user/:username" {:keys [username]}
+  (if (nil? (get-user username))
+    {:status 404
+     :body "Error: This user does not exist, nice try though."}))
+
+(defpage [:post "/user/follow/:username"] {:keys [username]}
+  (static-follow-user username true))
+
+(defpage [:post "/user/unfollow/:username"] {:keys [username]}
+  (static-follow-user username false))
+
+(defpage [:post "/rest/user/follow/:username"] {:keys [username]}
+  (rest-follow-user username true))
+
+(defpage [:post "/rest/user/unfollow/:username"] {:keys [username]}
+  (rest-follow-user username false))

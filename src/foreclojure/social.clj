@@ -1,12 +1,13 @@
 (ns foreclojure.social
-  (:require [tentacles.gists          :as   gist]
-            [noir.session             :as   session])
-  (:import  [java.net                 URLEncoder])
-  (:use     [foreclojure.template     :only [def-page]]
-            [foreclojure.utils        :only [escape-html]]
-            [compojure.core           :only [defroutes GET]]
-            [hiccup.page-helpers      :only [link-to]]
-            [somnium.congomongo       :only [fetch-one]]))
+  (:require [tentacles.gists      :as   gist]
+            [noir.session         :as   session])
+  (:import  [java.net             URLEncoder])
+  (:use     [foreclojure.utils    :only [escape-html]]
+            [foreclojure.template :only [html-doc]]
+            [compojure.core       :only [defroutes GET]]
+            [hiccup.page-helpers  :only [link-to]]
+            [somnium.congomongo   :only [fetch-one]]
+            [noir.core            :only [defpage]]))
 
 (defn throttled
   "Create a version of a function which 'refuses' to be called too
@@ -69,26 +70,27 @@
                         " on #4clojure " (clojure-hashtag) gist-url)]
     (tweet-link id status-msg link-text)))
 
-(def-page share-page []
-  {:title "Share your code!"
-   :content
-   (if-let [[id code] (session/get :code)]
-     (let [user (session/get :user)
-           gist-url (gist! user id code)
-           gist-link (if gist-url
-                       [:div {:id "shared-code-box"}
-                        [:div.code
-                         [:h3 "Your Solution"]
-                         [:pre {:class "brush: clojure;gutter: false;toolbar: false;light: true"} (escape-html code)]]
-                        [:br]
-                        [:div.share
-                         "Share this " (link-to gist-url "solution")
-                         " on " (tweet-solution id gist-url) "?"]]
-                       [:div.error
-                        "Failed to create gist of your solution"])]
-       gist-link)
-     [:div.error
-      "Sorry...I don't remember you solving anything recently!"])})
+(defn share-page []
+  (html-doc
+   {:title "Share your code!"
+    :content
+    (if-let [[id code] (session/get :code)]
+      (let [user (session/get :user)
+            gist-url (gist! user id code)
+            gist-link (if gist-url
+                        [:div {:id "shared-code-box"}
+                         [:div.code
+                          [:h3 "Your Solution"]
+                          [:pre {:class "brush: clojure;gutter: false;toolbar: false;light: true"} (escape-html code)]]
+                         [:br]
+                         [:div.share
+                          "Share this " (link-to gist-url "solution")
+                          " on " (tweet-solution id gist-url) "?"]]
+                        [:div.error
+                         "Failed to create gist of your solution"])]
+        gist-link)
+      [:div.error
+       "Sorry...I don't remember you solving anything recently!"])}))
 
-(defroutes social-routes
-  (GET "/share/code" [] (share-page)))
+
+(defpage "/share/code" [] (share-page))
