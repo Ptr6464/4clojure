@@ -1,6 +1,5 @@
 (ns foreclojure.api
   (:use [foreclojure.utils  :only [as-int]]
-        [compojure.core     :only [routes GET]]
         [somnium.congomongo :only [fetch-one]]
         [useful.map         :only [update-each]]
         [noir.core          :only [defpage]]

@@ -1,11 +1,9 @@
 (ns foreclojure.ring
   (:require [clojure.java.io           :as   io]
             [clojure.string            :as   s]
-            [compojure.route           :as   route]
             [cheshire.core             :as   json])
   (:import  [java.net                  URL])
-  (:use     [compojure.core            :only [GET routes]]
-            [hiccup.core               :only [html]]
+  (:use     [hiccup.core               :only [html]]
             [foreclojure.version-utils :only [strip-version-number]]
             [foreclojure.ring-utils    :only [get-host static-url]]
             [useful.debug              :only [?]]
