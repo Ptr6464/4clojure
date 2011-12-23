@@ -38,7 +38,7 @@
       (chart/add-pointer chart curr 0
                          :text "this"
                          :angle :ne))
-    (when-not (> (count freqs) 1)
+    (when (and best (<= (count freqs) 1))
       (chart/add-text chart best (freqs best 0)
                       "Very little golfing data - chart may suck"))
     (doto chart (chart/set-theme :bw))))
