@@ -487,6 +487,7 @@ table.my-table th {
    padding: 10px 0px 0px 0px;
    font-size: 14px;
    font-weight: bold;
+   text-align: left;
 }
 
 
