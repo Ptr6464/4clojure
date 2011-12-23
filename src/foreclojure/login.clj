@@ -1,20 +1,20 @@
 (ns foreclojure.login
-  (:require [sandbar.stateful-session :as   session]
-            [ring.util.response       :as   response])
+  (:require [noir.session             :as   session]
+            [noir.response            :as   response])
   (:import  [org.jasypt.util.password StrongPasswordEncryptor])
   (:use     [hiccup.form-helpers      :only [form-to label text-field password-field check-box]]
             [foreclojure.utils        :only [from-mongo flash-error flash-msg form-row assuming send-email login-url]]
-            [foreclojure.template     :only [def-page content-page]]
+            [foreclojure.template     :only [html-doc content-page]]
             [foreclojure.messages     :only [err-msg]]
-            [compojure.core           :only [defroutes GET POST]]
             [useful.map               :only [keyed]]
             [clojail.core             :only [thunk-timeout]]
             [clojure.stacktrace       :only [print-cause-trace]]
-            [somnium.congomongo       :only [update! fetch-one]]))
+            [somnium.congomongo       :only [update! fetch-one]]
+            [noir.core                :only [defpage defpartial]]))
 
 (def password-reset-url "https://www.4clojure.com/settings")
 
-(def login-box
+(def login-box 
   (form-to [:post "/login"]
     [:table
      [:tr
@@ -31,40 +31,42 @@
       [:td
        [:a {:href "/login/reset"} "Forgot your password?"]]]]))
 
-(def-page my-login-page [location]
-  (do
-    (if location (session/session-put! :login-to location))
-    {:title "4clojure - login"
-     :content
-     (content-page
-      {:main login-box})}))
+(defn my-login-page [location]
+  (html-doc
+   (do
+     (if location (session/put! :login-to location))
+     {:title "4clojure - login"
+      :content
+      (content-page
+       {:main login-box})})))
 
 (defn do-login [user pwd]
   (let [user (.toLowerCase user)
         {db-pwd :pwd} (from-mongo (fetch-one :users :where {:user user}))
-        location (session/session-get :login-to)]
+        location (session/get :login-to)]
     (if (and db-pwd (.checkPassword (StrongPasswordEncryptor.) pwd db-pwd))
       (do (update! :users {:user user}
                    {:$set {:last-login (java.util.Date.)}}
                    :upsert false) ; never create new users accidentally
-          (session/session-put! :user user)
-          (session/session-delete-key! :login-to)
+          (session/put! :user user)
+          (session/remove! :login-to)
           (response/redirect (or location "/problems")))
       (flash-error "/login" "Error logging in."))))
 
-(def-page reset-password-page []
-  {:title "Reset password"
-   :content
-   [:div
-    [:div#reset-help
-     [:h3 "Forgot your password?"]
-     [:div "Enter your email address and we'll send you a new password."]
-     [:div
-      [:span.error (session/flash-get :error)]
-      (form-to [:post "/login/reset"]
-        (label :email "Email")
-        (text-field :email)
-        [:button {:type "submit"} "Reset!"])]]]})
+(defn reset-password-page []
+  (html-doc
+   {:title "Reset password"
+    :content
+    [:div
+     [:div#reset-help
+      [:h3 "Forgot your password?"]
+      [:div "Enter your email address and we'll send you a new password."]
+      [:div
+       [:span.error (session/flash-get :error)]
+       (form-to [:post "/login/reset"]
+                (label :email "Email")
+                (text-field :email)
+                [:button {:type "submit"} "Reset!"])]]]}))
 
 (let [pw-chars "abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVWXY1234567890"]
   (defn random-pwd []
@@ -106,24 +108,27 @@
                                             :only [:_id :user])]
     (let [{:keys [success] :as diagnostics} (try-to-email email name id)]
       (if success
-        (do (session/session-put! :login-to password-reset-url)
+        (do (session/put! :login-to password-reset-url)
             (flash-msg (login-url password-reset-url)
-              "Your password has been reset! You should receive an email soon."))
+                       "Your password has been reset! You should receive an email soon."))
         (do (spit (str name ".pwd") diagnostics)
             (flash-error "/login/reset"
-              (err-msg "security.err-pwd-email" name)))))
+                         (err-msg "security.err-pwd-email" name)))))
     (flash-error "/login/reset"
-      (err-msg "security.err-unknown"))))
+                 (err-msg "security.err-unknown"))))
 
-(defroutes login-routes
-  (GET  "/login" [location] (my-login-page location))
-  (POST "/login" {{:strs [user pwd]} :form-params}
-    (do-login user pwd))
+(defpage "/login" {:keys [location]}
+  (my-login-page location))
 
-  (GET  "/login/reset" [] (reset-password-page))
-  (POST "/login/reset" [email]
-    (do-reset-password! email))
+(defpage [:post "/login"] {:keys [user pwd]}
+  (do-login user pwd))
 
-  (GET "/logout" []
-    (do (session/session-delete-key! :user)
-        (response/redirect "/"))))
+(defpage "/login/reset" []
+  (reset-password-page))
+
+(defpage [:post "/login/reset"] {:keys [email]}
+  (do-reset-password! email))
+
+(defpage "/logout" []
+  (do (session/remove! :user)
+      (response/redirect "/")))
