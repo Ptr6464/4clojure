@@ -1,10 +1,9 @@
-(ns foreclojure.messages)
+(ns foreclojure.messages
+  (:require [clojure.java.io :as io]))
 
-(defn load-props [file] 
+(defn load-props [file]
   (into {} (doto (java.util.Properties.)
-             (.load (-> (Thread/currentThread)
-             (.getContextClassLoader)
-             (.getResourceAsStream file))))))
+             (.load (io/reader (io/resource file))))))
  
 (def err-msg-map  (load-props "error-messages.properties"))             
              
