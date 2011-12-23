@@ -21,7 +21,6 @@
             [hiccup.page-helpers      :only    [link-to]]
             [hiccup.core              :only    [html]]
             [useful.debug             :only    [?]]
-            [compojure.core           :only    [defroutes GET POST]]
             [noir.response            :only    [json]]
             [noir.core                :only    [defpage defpartial]]))
 
