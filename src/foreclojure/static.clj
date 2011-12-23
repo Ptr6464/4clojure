@@ -1,6 +1,5 @@
 (ns foreclojure.static
-  (:use [compojure.core         :only [defroutes GET]]
-        [foreclojure.problems   :only [solved-stats]]
+  (:use [foreclojure.problems   :only [solved-stats]]
         [foreclojure.config     :only [repo-url]]
         [foreclojure.ring-utils :only [static-url]]
         [foreclojure.template   :only [html-doc]]
@@ -90,5 +89,5 @@
       [:a {:href "http://groups.google.com/group/4clojure"} "4Clojure Google Group"]
       "."]]}))
 
-(defroutes static-routes
-  (GET "/directions" [] (help-page)))
+(defpage "/directions" [] (help-page))
+(defpage "/" [] (welcome-page))
