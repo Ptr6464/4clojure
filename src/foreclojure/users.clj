@@ -10,7 +10,6 @@
             [foreclojure.ring-utils :only [*http-scheme* universal-url]]
             [foreclojure.config     :only [config repo-url]]
             [somnium.congomongo     :only [fetch-one fetch update!]]
-            [compojure.core         :only [defroutes GET POST]]
             [hiccup.form-helpers    :only [form-to hidden-field]]
             [hiccup.page-helpers    :only [link-to]])
   (:import org.apache.commons.codec.digest.DigestUtils
