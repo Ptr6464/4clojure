@@ -1,16 +1,17 @@
 (ns foreclojure.version
-  (:use [foreclojure.template :only [def-page]]
+  (:use [foreclojure.template :only [html-doc]]
         [foreclojure.config   :only [repo-url]]
         [foreclojure.git      :only [sha tag]]
-        [compojure.core       :only [defroutes GET]]))
+        [noir.core            :only [defpage]]))
 
-(def-page version []
-  {:title "About/version"
-   :content
-   (if tag
-     [:p
-      [:a {:href (str repo-url "/tree/" sha)} tag]]
-     [:p "No git repository found"])})
+(defn version []
+  (html-doc
+   {:title "About/version"
+    :content
+    (if tag
+      [:p
+       [:a {:href (str repo-url "/tree/" sha)} tag]]
+      [:p "No git repository found"])}))
 
-(defroutes version-routes
-  (GET ["/about/version"] [] (version)))
+(defpage "/about/version" []
+  (version))

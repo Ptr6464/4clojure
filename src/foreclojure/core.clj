@@ -20,7 +20,8 @@
             foreclojure.login
             foreclojure.register
             foreclojure.settings
-            foreclojure.golf))
+            foreclojure.golf
+            foreclojure.version))
 
 (defpartial render-404 []
   [:head
