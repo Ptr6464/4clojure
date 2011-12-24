@@ -46,5 +46,5 @@
 (defn -main [& _]
   (prepare-mongo)
   (server/start
-   (get config :jetty-port 8080)
+   (config :jetty-port (Integer. (get (System/getenv) "PORT" "8080")))
    {:session-store (mongo-session :sessions)}))
